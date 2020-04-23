@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+<style>		
+#wrap {
+    width: 1000px;
+    overflow: hidden; /* will contain if #left is longer than #right */
+}
+#left {
+    width: 120px;
+    float:left; /* add this */
+}
+#right {
+    border-left: 1px solid green;
+    overflow: hidden; /* if you don't want #right to wrap below #left */
+    text-align: center;
+}
+.grid {
+  display: grid;
+  grid-gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+}
+div > div {
+  padding: 10px;
+  background-color: white; /* #ccc */
+}
+</style>
+</head>
+<body>
+<div id='wrap'>
+<div id='left'>
+	<button>Edit Post</button> <br>
+	<button>Add Comment</button> <br>
+	<button onclick="DeleteComment()">Delete Comment</button> <br>	
+	<button onclick="DeletePost()">Delete Post</button> <br>
+</div>
+<div id='right'>	
+<div class="list" id="demo"></div>
+
+<div><button>Show Comments</button>
+
+<div class="pagenumbers" id="pagination"></div>
+</div>
+</div>
+
+<script>
+document.getElementById("demo").align = "center";
+
+async function load(){
+	const response = await fetch("query.php");
+	const posts = await response.json();
+	console.log(posts);
+
+	/*PAGINATION METHODS*/
+	const list_element = document.getElementById('demo')
+	const pagination_element = document.getElementById('pagination');
+
+	let current_page = 1;
+	let results_per_page = 1;
+
+	function DisplayList (items, wrapper, rows_per_page, page) {
+	wrapper.innerHTML = "";
+	page--;
+
+	let start = rows_per_page * page;
+	let end = start + rows_per_page;
+	let paginatedItems = items.slice(start, end);
+	console.log(paginatedItems);
+
+	paginatedItems.map(post => {
+		let item_element = document.createElement('div');
+		str = `
+		Post Id: ${post.id}
+		${post.title}
+		${post.body}
+		Post Author: ${post.displayName}
+		Answer Count: ${post.answerCount}`;
+
+		item_element.classList.add('str');
+		item_element.innerText = str;
+		
+		list_element.appendChild(item_element);	
+	}).join("");
+	
+}
+
+function SetupPagination (items, wrapper, results_per_page) {
+	wrapper.innerHTML = "";
+
+	let page_count = Math.ceil(items.length / results_per_page);
+	for (let i = 1; i < page_count + 1; i++) {
+		let btn = PaginationButton(i, items);
+		wrapper.appendChild(btn);
+	}
+}
+
+function PaginationButton (page, items) {
+	let button = document.createElement('button');
+	button.innerText = page;
+
+	if (current_page == page) button.classList.add('active');
+
+	button.addEventListener('click', function () {
+		current_page = page;
+		DisplayList(items, list_element, results_per_page, current_page);
+
+		let current_btn = document.querySelector('.pagenumbers button.active');
+		current_btn.classList.remove('active');
+
+		button.classList.add('active');
+	});
+
+	return button;
+}
+
+DisplayList(posts, list_element, results_per_page, current_page);
+SetupPagination(posts, pagination_element, results_per_page);
+}
+
+load();
+
+async function DeletePost(){
+	const response = await fetch("query.php");
+	const posts = await response.json();	
+	let id = posts[0].id;
+	console.log(id);
+
+	const resp = await fetch("delete.php?id=" + id, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }).then(res => res.text())
+.then(res => console.log(res))
+load();
+}
+
+</script>
+</body>
+</html>
