@@ -8,18 +8,13 @@
     overflow: hidden; /* will contain if #left is longer than #right */
 }
 #left {
-    width: 120px;
+    width: 140px;
     float:left; /* add this */
 }
 #right {
     border-left: 1px solid green;
-    overflow: hidden; /* if you don't want #right to wrap below #left */
+    overflow: hidden; /* if you don't want #right to wrap below #left   type="submit" */
     text-align: center;
-}
-.grid {
-  display: grid;
-  grid-gap: 1px;
-  grid-template-columns: repeat(3, 1fr);
 }
 div > div {
   padding: 10px;
@@ -29,28 +24,125 @@ div > div {
 </head>
 <body>
 <div id='wrap'>
+
 <div id='left'>
-	<button>Edit Post</button> <br>
-	<button>Add Comment</button> <br>
+	<form class="form" id="edit_post">
+		<input type="text" name="edit_post_body" id="edit_post_body" placeholder="edit this post">
+		<button type="submit">Edit Post</button>
+	</form><br>
+
+	<form class="form" id="add_comment" autocomplete="off">
+		<input type="text" name="comment_user_name" id="comment_user_name" placeholder="enter username">
+		<input type="text" name="comment_text" id="comment_text" placeholder="add a comment" autocomplete="off">
+		<button type="submit">Add Comment</button>
+	</form>
 	<button onclick="DeleteComment()">Delete Comment</button> <br>	
 	<button onclick="DeletePost()">Delete Post</button> <br>
 </div>
+
 <div id='right'>	
 <div class="list" id="demo"></div>
-
-<div><button>Show Comments</button>
-
+<div><button onclick="ShowComments()">Show Comments</button>
 <div class="pagenumbers" id="pagination"></div>
 </div>
-</div>
+
+</div> <!--this is the end of the 'wrap' div-->
 
 <script>
+	//This is for Editing the Post
+const edit_post = document.getElementById('edit_post');
+
+edit_post.addEventListener('submit', function (e) {	
+	e.preventDefault();
+	var post_body = document.getElementById('edit_post_body').value;
+	
+	fetch("query.php")
+	.then(response => response.json())
+	.then(data => {let id = data[0].id
+  console.log('Post edited successfully:', id);
+  fetch("edit.php?id=" + id, {
+		method: 'PUT',
+    	headers: {    	
+      		'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify(post_body)
+	})
+  load();
+})
+})
+
+	//This is for adding comments
+const add_comment = document.getElementById('add_comment');
+//const add_user = document.getElementById('add_user');
+
+/*add_user.addEventListener('submit', function (e) {
+	e.preventDefault();	
+	var comment_user_name = document.getElementById('comment_user_name').value;
+	console.log(comment_user_name);
+	
+	fetch("adduser.php", {
+  	method: 'POST',
+  	headers: {    	
+      		'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify(comment_user_name)
+  })
+})*/
+
+add_comment.addEventListener('submit', function (e) {
+	e.preventDefault();
+	var comment_user_name = document.getElementById('comment_user_name').value;
+	var comment_text = document.getElementById('comment_text').value;
+
+	fetch("adduser.php", {
+  	method: 'POST',
+  	headers: {    	
+      		'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify(comment_user_name)
+  })
+	
+	fetch("query.php")
+	.then(response => response.json())
+	.then(data => {let post_id = data[0].id
+  //console.log('Comment added successfully to Post:', post_id);
+  fetch("addcomment.php?id=" + post_id, {
+		method: 'POST',
+    	headers: {    	
+      		'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify(comment_text)
+	})
+
+	fetch("commentsquery.php?id=" + post_id, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  }).then(response => response.json())
+	.then(data => {let comment_id = data[data.length-1].id
+		console.log(comment_id);
+	fetch("getuserid.php?id=" + comment_user_name, {
+	method: 'GET',
+  	headers: {    	
+      		'Content-Type': 'application/json; charset=UTF-8',
+    }
+	}).then(response => response.json())
+	.then(data => {let user_id = data[0].id
+		console.log(user_id);
+	})
+	})	
+})
+	load();
+	ShowComments();
+})
+
 document.getElementById("demo").align = "center";
 
 async function load(){
 	const response = await fetch("query.php");
 	const posts = await response.json();
-	console.log(posts);
+	//console.log(posts);
 
 	/*PAGINATION METHODS*/
 	const list_element = document.getElementById('demo')
@@ -59,16 +151,16 @@ async function load(){
 	let current_page = 1;
 	let results_per_page = 1;
 
-	function DisplayList (items, wrapper, rows_per_page, page) {
+	function DisplayList (items, wrapper, results_per_page, current_page) {
 	wrapper.innerHTML = "";
-	page--;
+	current_page--;
 
-	let start = rows_per_page * page;
-	let end = start + rows_per_page;
-	let paginatedItems = items.slice(start, end);
-	console.log(paginatedItems);
+	let start = results_per_page * current_page;
+	let end = start + results_per_page;
+	let paginated_items = items.slice(start, end);
+	//console.log(paginated_items);
 
-	paginatedItems.map(post => {
+	paginated_items.map(post => {
 		let item_element = document.createElement('div');
 		str = `
 		Post Id: ${post.id}
@@ -126,7 +218,7 @@ async function DeletePost(){
 	let id = posts[0].id;
 	console.log(id);
 
-	const resp = await fetch("delete.php?id=" + id, {
+	const resp = await fetch("deletepost.php?id=" + id, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
@@ -135,6 +227,102 @@ async function DeletePost(){
 .then(res => console.log(res))
 load();
 }
+
+async function ShowComments(){
+	const list_element = document.getElementById('demo')
+	const response = await fetch("query.php");
+	const posts = await response.json();	
+	let id = posts[0].id;
+
+	const resp = await fetch("commentsquery.php?id=" + id, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+	const comm = await resp.json();
+	console.log(comm);
+comm.map(comments => {
+		let item_element = document.createElement('div');		
+		str = `
+		${comments.text}
+
+		Comment by: ${comments.displayName}`;
+
+		item_element.classList.add('str');
+		item_element.innerText = str;
+		list_element.appendChild(item_element);	
+	}).join("");	
+}
+
+async function DeleteComment(){
+	const response = await fetch("query.php");
+	const posts = await response.json();	
+	let id = posts[0].id;
+
+	const resp = await fetch("commentsquery.php?id=" + id, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+	const comm = await resp.json();
+	id = comm[0].id;
+
+	const res = await fetch("deletecomment.php?id=" + id, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }).then(res => res.text())
+load();
+ShowComments();
+}
+
+/*async function AddComment(){
+	var comment_text = document.getElementById('comment_text').value;
+	var comment_user_name = document.getElementById('comment_user_name').value;
+	const response = await fetch("query.php");
+	const posts = await response.json();	
+	let post_id = posts[0].id;
+
+	const res = await fetch("addcomment.php?id=" + post_id, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+  body: JSON.stringify(comment_text)
+  }).then(res => res.text())
+.then(res => console.log(res))
+
+load();
+ShowComments();
+} */
+
+/* Taking FormData might be done like this
+const form_data = new FormData(this);
+	var object = {};
+		form_data.forEach(function(value, key){
+    	object[key] = value;
+	});*/
+
+/* HARD-coding method for editing Posts body
+async function EditPost(){
+	const response = await fetch("query.php");
+	const posts = await response.json();	
+	let id = posts[0].id;
+
+	const resp = await fetch("edit.php?id=" + id, {
+    method: 'PUT',
+    headers: {    	
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify("new editing")
+  }).then(res => res.text())
+.then(res => console.log(res))
+
+	load();
+}*/
 
 </script>
 </body>
